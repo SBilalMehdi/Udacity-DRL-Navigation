@@ -43,7 +43,7 @@ The environment is considered to be solved if the agent scores with an average o
 
 | File Name             | Description                                                                    |
 |-----------------------|--------------------------------------------------------------------------------|
-| Navigation.ipynb    | Main file that trains a DQN agent |
+| Navigation.ipynb    | Main file that trains a DQN agent (or runs an already trained model)|
 | Readme.md    | This readme |
 | Report.pdf    | A short report on the project |
 | dqn_agent.py    | Python code that contains the algorithmic implementation of DQN |
