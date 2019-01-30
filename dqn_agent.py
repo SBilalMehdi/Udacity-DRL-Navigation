@@ -20,7 +20,7 @@ device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 class Agent():
     """Interacts with and learns from the environment."""
 
-    def __init__(self, state_size, action_size, seed, two_layers = True, fc1_units=64, fc2_units=64, gamma=0.99, tau=1e-3, lr=5e-4):
+    def __init__(self, state_size, action_size, seed, two_layers = True, fc1_units=64, fc2_units=64, gamma=0.99, tau=1e-3, lr=5e-4, model_file=''):
         """Initialize an Agent object.
         
         Params
@@ -28,24 +28,33 @@ class Agent():
             state_size (int): dimension of each state
             action_size (int): dimension of each action
             seed (int): random seed
+            model_file: if model_file=='' then the agent trains, otherwise it just loads the model and use it to provide actions (greedily)
         """
         self.state_size = state_size
         self.action_size = action_size
-        self.seed = random.seed(seed)
         
-        self.gamma = gamma
-        self.tau = tau
-        self.lr = lr
+        if model_file == '':
+            self.training = True
+            self.seed = random.seed(seed)
+        
+            self.gamma = gamma
+            self.tau = tau
+            self.lr = lr
 
-        # Q-Network
-        self.qnetwork_local = QNetwork(state_size, action_size, seed, two_layers, fc1_units, fc2_units).to(device)
-        self.qnetwork_target = QNetwork(state_size, action_size, seed, two_layers, fc1_units, fc2_units).to(device)
-        self.optimizer = optim.Adam(self.qnetwork_local.parameters(), lr=self.lr)
+            # Q-Network
+            self.qnetwork_local = QNetwork(state_size, action_size, seed, two_layers, fc1_units, fc2_units).to(device)
+            self.qnetwork_target = QNetwork(state_size, action_size, seed, two_layers, fc1_units, fc2_units).to(device)
+            self.optimizer = optim.Adam(self.qnetwork_local.parameters(), lr=self.lr)
 
-        # Replay memory
-        self.memory = ReplayBuffer(action_size, BUFFER_SIZE, BATCH_SIZE, seed)
-        # Initialize time step (for updating every UPDATE_EVERY steps)
-        self.t_step = 0
+            # Replay memory
+            self.memory = ReplayBuffer(action_size, BUFFER_SIZE, BATCH_SIZE, seed)
+            # Initialize time step (for updating every UPDATE_EVERY steps)
+            self.t_step = 0
+        else:
+            self.training = False
+            self.qnetwork_local = QNetwork(state_size, action_size, seed, two_layers, fc1_units, fc2_units)
+            self.qnetwork_local.load_state_dict(torch.load(model_file))
+
     
     def step(self, state, action, reward, next_state, done):
         """ Store the experience in memory and update the networks after every few calls to this function.
@@ -82,13 +91,17 @@ class Agent():
         self.qnetwork_local.eval()
         with torch.no_grad():
             action_values = self.qnetwork_local(state)
-        self.qnetwork_local.train()
+        
+        if self.training:
+            self.qnetwork_local.train()
 
-        # Epsilon-greedy action selection
-        if random.random() > eps:
-            return np.argmax(action_values.cpu().data.numpy())
+            # Epsilon-greedy action selection
+            if random.random() > eps:
+                return np.argmax(action_values.cpu().data.numpy())
+            else:
+                return random.choice(np.arange(self.action_size))
         else:
-            return random.choice(np.arange(self.action_size))
+            return np.argmax(action_values.cpu().data.numpy())
 
     def learn(self, experiences):
         """Update the networks
